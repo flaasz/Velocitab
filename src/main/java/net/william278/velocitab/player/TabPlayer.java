@@ -142,16 +142,16 @@ public final class TabPlayer implements Comparable<TabPlayer> {
             if (disabled) {
                 if (!Component.empty().equals(header)) {
                     lastHeader = header;
-                    player.sendPlayerListHeader(header);
+                    //player.sendPlayerListHeader(header);
                 }
                 if (!Component.empty().equals(footer)) {
                     lastFooter = footer;
-                    player.sendPlayerListFooter(footer);
+                    //player.sendPlayerListFooter(footer);
                 }
             } else {
                 lastHeader = header;
                 lastFooter = footer;
-                player.sendPlayerListHeaderAndFooter(header, footer);
+                //player.sendPlayerListHeaderAndFooter(header, footer);
             }
         }));
     }

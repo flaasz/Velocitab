@@ -31,10 +31,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Adapter for handling the UpdateTeamsPacket for Minecraft 1.8.x
- */
-@SuppressWarnings("DuplicatedCode")
 public class Protocol48Adapter extends TeamsPacketAdapter {
 
     private final LegacyComponentSerializer serializer;
@@ -46,44 +42,58 @@ public class Protocol48Adapter extends TeamsPacketAdapter {
 
     @Override
     public void encode(@NotNull ByteBuf byteBuf, @NotNull UpdateTeamsPacket packet, @NotNull ProtocolVersion protocolVersion) {
-        ProtocolUtils.writeString(byteBuf, shrinkString(packet.teamName()));
-        UpdateTeamsPacket.UpdateMode mode = packet.mode();
-        byteBuf.writeByte(mode.id());
-        if (mode == UpdateTeamsPacket.UpdateMode.REMOVE_TEAM) {
-            return;
-        }
-        if (mode == UpdateTeamsPacket.UpdateMode.CREATE_TEAM || mode == UpdateTeamsPacket.UpdateMode.UPDATE_INFO) {
-            writeComponent(byteBuf, packet.displayName());
-            writeComponent(byteBuf, packet.prefix());
-            writeComponent(byteBuf, packet.suffix());
-            byteBuf.writeByte(UpdateTeamsPacket.FriendlyFlag.toBitMask(packet.friendlyFlags()));
-            ProtocolUtils.writeString(byteBuf, packet.nametagVisibility().id());
-            if (protocolVersion.compareTo(ProtocolVersion.MINECRAFT_1_12_2) >= 0) {
-                ProtocolUtils.writeString(byteBuf, packet.collisionRule().id());
+        try {
+            getPlugin().getLogger().info("Encoding team packet: " + packet.teamName());
+            ProtocolUtils.writeString(byteBuf, shrinkString(packet.teamName()));
+            UpdateTeamsPacket.UpdateMode mode = packet.mode();
+            byteBuf.writeByte(mode.id());
+    
+            if (mode == UpdateTeamsPacket.UpdateMode.REMOVE_TEAM) {
+                return;
             }
-            byteBuf.writeByte(packet.color());
-        }
-        if (mode == UpdateTeamsPacket.UpdateMode.CREATE_TEAM || mode == UpdateTeamsPacket.UpdateMode.ADD_PLAYERS || mode == UpdateTeamsPacket.UpdateMode.REMOVE_PLAYERS) {
-            List<String> entities = packet.entities();
-            ProtocolUtils.writeVarInt(byteBuf, entities != null ? entities.size() : 0);
-            for (String entity : entities != null ? entities : new ArrayList<String>()) {
-                ProtocolUtils.writeString(byteBuf, entity);
+    
+            if (mode == UpdateTeamsPacket.UpdateMode.CREATE_TEAM || mode == UpdateTeamsPacket.UpdateMode.UPDATE_INFO) {
+                getPlugin().getLogger().info("Writing display name: " + packet.displayName());
+                writeComponent(byteBuf, packet.displayName() != null ? packet.displayName() : Component.empty());
+                getPlugin().getLogger().info("Writing prefix: " + packet.prefix());
+                writeComponent(byteBuf, packet.prefix() != null ? packet.prefix() : Component.empty());
+                getPlugin().getLogger().info("Writing suffix: " + packet.suffix());
+                writeComponent(byteBuf, packet.suffix() != null ? packet.suffix() : Component.empty());
+                byteBuf.writeByte(UpdateTeamsPacket.FriendlyFlag.toBitMask(packet.friendlyFlags()));
+                ProtocolUtils.writeString(byteBuf, packet.nametagVisibility() != null ? packet.nametagVisibility().id() : "always");
+    
+                if (protocolVersion.compareTo(ProtocolVersion.MINECRAFT_1_12_2) >= 0) {
+                    ProtocolUtils.writeString(byteBuf, packet.collisionRule() != null ? packet.collisionRule().id() : "always");
+                }
+    
+                byte color = (byte) (packet.color() & 0xFF); // Cast int to byte safely
+                if (color < 0 || color > 15) {
+                    color = 0; // Default to white if color is invalid
+                }
+                byteBuf.writeByte(color);
             }
+    
+            if (mode == UpdateTeamsPacket.UpdateMode.CREATE_TEAM || mode == UpdateTeamsPacket.UpdateMode.ADD_PLAYERS || mode == UpdateTeamsPacket.UpdateMode.REMOVE_PLAYERS) {
+                List<?> rawEntities = packet.entities();
+                List<String> entities = (List<String>) (List<?>) (rawEntities != null ? rawEntities : new ArrayList<>());
+                ProtocolUtils.writeVarInt(byteBuf, entities.size());
+                for (String entity : entities) {
+                    ProtocolUtils.writeString(byteBuf, shrinkString(entity));
+                }
+            }
+        } catch (Exception e) {
+            getPlugin().getLogger().error("Error encoding UpdateTeamsPacket", e);
+            throw e;
         }
     }
-
-    /**
-     * Returns a shortened version of the given string, with a maximum length of 16 characters.
-     * This is used to ensure that the team name, display name, prefix and suffix are not too long for the client.
-     * @param string the string to be shortened
-     * @return the shortened string
-     */
+    
     @NotNull
     private String shrinkString(@NotNull String string) {
-        return string.substring(0, Math.min(string.length(), 16));
+        return string != null ? string.substring(0, Math.min(string.length(), 16)) : "";
     }
-
+    
     protected void writeComponent(ByteBuf buf, Component component) {
-        ProtocolUtils.writeString(buf, shrinkString(serializer.serialize(component)));
+        ProtocolUtils.writeString(buf, shrinkString(serializer.serialize(component != null ? component : Component.empty())));
     }
+    
 }

@@ -108,11 +108,11 @@ public class PacketEventManager {
             return;
         }
 
-        toUpdate.forEach(tabPlayer -> packet.getEntries().stream()
+        /*toUpdate.forEach(tabPlayer -> packet.getEntries().stream()
                 .filter(entry -> entry.getProfileId().equals(tabPlayer.getPlayer().getUniqueId()))
                 .findFirst()
                 .ifPresent(entry -> entry.setDisplayName(
-                        new ComponentHolder(player.getProtocolVersion(), tabPlayer.getLastDisplayName()))));
+                        new ComponentHolder(player.getProtocolVersion(), tabPlayer.getLastDisplayName()))));*/
     }
 
 }

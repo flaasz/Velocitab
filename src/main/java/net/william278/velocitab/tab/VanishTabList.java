@@ -48,7 +48,7 @@ public class VanishTabList {
             }
 
             if (!plugin.getVanishManager().canSee(p.getPlayer().getUsername(), tabPlayer.getPlayer().getUsername())) {
-                p.getPlayer().getTabList().removeEntry(tabPlayer.getPlayer().getUniqueId());
+                //p.getPlayer().getTabList().removeEntry(tabPlayer.getPlayer().getUniqueId());
             }
         });
     }
@@ -62,9 +62,9 @@ public class VanishTabList {
             }
 
             if (!p.getPlayer().getTabList().containsEntry(uuid)) {
-                p.getPlayer().getTabList().addEntry(tabList.createEntry(tabPlayer, p.getPlayer().getTabList(), c));
+                //p.getPlayer().getTabList().addEntry(tabList.createEntry(tabPlayer, p.getPlayer().getTabList(), c));
             } else {
-                p.getPlayer().getTabList().getEntry(uuid).ifPresent(entry -> entry.setDisplayName(c));
+                //p.getPlayer().getTabList().getEntry(uuid).ifPresent(entry -> entry.setDisplayName(c));
             }
         }));
 
@@ -100,14 +100,14 @@ public class VanishTabList {
                     plugin.getVanishManager().canSee(player.getUsername(), p.getUsername());
 
             if (!canSee) {
-                player.getTabList().removeEntry(p.getUniqueId());
+                //player.getTabList().removeEntry(p.getUniqueId());
                 plugin.getScoreboardManager().ifPresent(s -> s.recalculateVanishForPlayer(tabPlayer, target, false));
             } else {
                 if (!player.getTabList().containsEntry(p.getUniqueId())) {
-                    tabList.createEntry(target, player.getTabList()).thenAccept(e -> {
+                    /*tabList.createEntry(target, player.getTabList()).thenAccept(e -> {
                         player.getTabList().addEntry(e);
                         plugin.getScoreboardManager().ifPresent(s -> s.recalculateVanishForPlayer(tabPlayer, target, true));
-                    });
+                    });*/
                 }
             }
         });

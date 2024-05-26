@@ -134,7 +134,7 @@ public class PlayerTabList {
             }
 
             serversInGroup.remove(server.get().getServer());
-            serversInGroup.forEach(s -> s.getPlayersConnected().forEach(t -> t.getTabList().removeEntry(p.getUniqueId())));
+            //serversInGroup.forEach(s -> s.getPlayersConnected().forEach(t -> t.getTabList().removeEntry(p.getUniqueId())));
         });
     }
 
@@ -154,7 +154,7 @@ public class PlayerTabList {
 
         tabPlayer.getDisplayName(plugin).thenAccept(d -> {
 
-            joined.getTabList().getEntry(joined.getUniqueId())
+            /*joined.getTabList().getEntry(joined.getUniqueId())
                     .ifPresentOrElse(e -> e.setDisplayName(d),
                             () -> joined.getTabList().addEntry(createEntry(tabPlayer, joined.getTabList(), d)));
 
@@ -164,7 +164,7 @@ public class PlayerTabList {
                         plugin.log(Level.ERROR, String.format("Failed to send header and footer for %s (UUID: %s)",
                                 joined.getUsername(), joined.getUniqueId()), throwable);
                         return null;
-                    });
+                    });*/
 
             final Set<String> serversInGroup = group.registeredServers(plugin).stream()
                     .map(server -> server.getServerInfo().getName())
@@ -186,15 +186,15 @@ public class PlayerTabList {
                             if (!isVanished || plugin.getVanishManager().canSee(player.getPlayer().getUsername(), joined.getUsername())) {
                                 addPlayerToTabList(player, tabPlayer, d);
                             } else {
-                                player.getPlayer().getTabList().removeEntry(joined.getUniqueId());
+                                //player.getPlayer().getTabList().removeEntry(joined.getUniqueId());
                             }
                             // check if joined player can see current player
                             if ((plugin.getVanishManager().isVanished(player.getPlayer().getUsername()) &&
                                     !plugin.getVanishManager().canSee(joined.getUsername(), player.getPlayer().getUsername())) &&
                                     player.getPlayer() != joined) {
-                                tabList.removeEntry(player.getPlayer().getUniqueId());
+                                //tabList.removeEntry(player.getPlayer().getUniqueId());
                             } else {
-                                tabList.getEntry(player.getPlayer().getUniqueId()).ifPresentOrElse(
+                                /*tabList.getEntry(player.getPlayer().getUniqueId()).ifPresentOrElse(
                                         entry -> player.getDisplayName(plugin).thenAccept(entry::setDisplayName)
                                                 .exceptionally(throwable -> {
                                                     plugin.log(Level.ERROR, String.format("Failed to set display name for %s (UUID: %s)",
@@ -202,7 +202,7 @@ public class PlayerTabList {
                                                     return null;
                                                 }),
                                         () -> createEntry(player, tabList).thenAccept(tabList::addEntry)
-                                );
+                                );*/
                             }
 
                             player.sendHeaderAndFooter(this);
@@ -243,8 +243,8 @@ public class PlayerTabList {
             entries.entrySet().stream()
                     .filter(entry -> entry.getValue().getProfile() != null)
                     .filter(entry -> entry.getValue().getProfile().getId().equals(target.getUniqueId()))
-                    .filter(entry -> !entry.getKey().equals(target.getUniqueId()))
-                    .forEach(entry -> target.getTabList().removeEntry(entry.getKey()));
+                    .filter(entry -> !entry.getKey().equals(target.getUniqueId()));
+                    //.forEach(entry -> target.getTabList().removeEntry(entry.getKey()));
         } catch (Throwable error) {
             plugin.log(Level.ERROR, "Failed to fix duplicate entries", error);
         }
@@ -256,7 +256,7 @@ public class PlayerTabList {
 
     protected void removePlayer(@NotNull Player target, @Nullable RegisteredServer server) {
         final UUID uuid = target.getUniqueId();
-        plugin.getServer().getAllPlayers().forEach(player -> player.getTabList().removeEntry(uuid));
+        //plugin.getServer().getAllPlayers().forEach(player -> player.getTabList().removeEntry(uuid));
 
         final Set<Player> currentServerPlayers = Optional.ofNullable(server)
                 .map(RegisteredServer::getPlayersConnected)
@@ -269,8 +269,8 @@ public class PlayerTabList {
                 .buildTask(plugin, () -> getPlayers().values().stream()
                         .filter(p -> currentServerPlayers.isEmpty() || !currentServerPlayers.contains(p.getPlayer()))
                         .forEach(player -> {
-                            player.getPlayer().getTabList().removeEntry(uuid);
-                            player.sendHeaderAndFooter(this);
+                            //player.getPlayer().getTabList().removeEntry(uuid);
+                            //player.sendHeaderAndFooter(this);
                         }))
                 .delay(500, TimeUnit.MILLISECONDS)
                 .schedule();
@@ -306,14 +306,14 @@ public class PlayerTabList {
                 .delay(500, TimeUnit.MILLISECONDS)
                 .schedule();
 
-        player.getPlayer()
+        /*player.getPlayer()
                 .getTabList().getEntries().stream()
                 .filter(e -> e.getProfile().getId().equals(newPlayer.getPlayer().getUniqueId())).findFirst()
                 .ifPresentOrElse(
                         entry -> entry.setDisplayName(displayName),
                         () -> player.getPlayer().getTabList()
                                 .addEntry(createEntry(newPlayer, player.getPlayer().getTabList(), displayName))
-                );
+                );*/
     }
 
 
@@ -357,9 +357,9 @@ public class PlayerTabList {
                     return;
                 }
 
-                player.getPlayer().getTabList().getEntries().stream()
+                /*player.getPlayer().getTabList().getEntries().stream()
                         .filter(e -> e.getProfile().getId().equals(tabPlayer.getPlayer().getUniqueId())).findFirst()
-                        .ifPresent(entry -> entry.setDisplayName(displayName));
+                        .ifPresent(entry -> entry.setDisplayName(displayName));*/
             });
         });
     }
