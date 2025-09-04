@@ -20,21 +20,18 @@
 package net.william278.velocitab.sorting;
 
 import com.google.common.collect.Lists;
+import com.velocitypowered.api.network.ProtocolVersion;
 import net.william278.velocitab.Velocitab;
-import net.william278.velocitab.config.Placeholder;
 import net.william278.velocitab.player.TabPlayer;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class SortingManager {
 
     private final Velocitab plugin;
-    private static final String DELIMITER = ":::";
     private static final Pattern NUMBER_PATTERN = Pattern.compile("^-?[0-9]\\d*(\\.\\d+)?$");
 
     public SortingManager(@NotNull Velocitab plugin) {
@@ -42,32 +39,41 @@ public class SortingManager {
     }
 
     @NotNull
-    public CompletableFuture<String> getTeamName(@NotNull TabPlayer player) {
+    public String getTeamName(@NotNull TabPlayer player) {
         if (!plugin.getSettings().isSortPlayers()) {
-            return CompletableFuture.completedFuture("");
+            return "";
         }
 
-        return Placeholder.replace(String.join(DELIMITER, player.getGroup().sortingPlaceholders()), plugin, player)
-                .thenApply(s -> Arrays.asList(s.split(DELIMITER)))
-                .thenApply(v -> v.stream().map(this::adaptValue).collect(Collectors.toList()))
-                .thenApply(v -> handleList(player, v));
+        final List<String> placeholders = player.getGroup().sortingPlaceholders()
+                .stream()
+                .map(s -> plugin.getPlaceholderManager().applyPlaceholders(player, s))
+                .map(s -> adaptValue(s, player))
+                .collect(Collectors.toList());
+
+        return handleList(player, placeholders);
     }
 
     @NotNull
     private String handleList(@NotNull TabPlayer player, @NotNull List<String> values) {
         String result = String.join("", values);
 
-        if (result.length() > 12) {
+        if (result.length() > 12 && isLongTeamNotAllowed(player)) {
             result = result.substring(0, 12);
         }
 
-        result += player.getPlayer().getUniqueId().toString().substring(0, 4); // Make unique
+        final String uuid = player.getPlayer().getUniqueId().toString();
+        result += uuid.substring(uuid.length() - 4); // Make unique
 
         return result;
     }
 
+    private boolean isLongTeamNotAllowed(@NotNull TabPlayer player) {
+        return !player.getGroup().getPlayers(plugin, player).stream()
+                .allMatch(t -> t.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_18));
+    }
+
     @NotNull
-    private String adaptValue(@NotNull String value) {
+    private String adaptValue(@NotNull String value, @NotNull TabPlayer player) {
         if (value.isEmpty()) {
             return "";
         }
@@ -78,7 +84,7 @@ public class SortingManager {
             return compressNumber(Integer.MAX_VALUE / 4d - parsed);
         }
 
-        if (value.length() > 6) {
+        if (value.length() > 6 && isLongTeamNotAllowed(player)) {
             return value.substring(0, 4);
         }
 

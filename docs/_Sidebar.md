@@ -3,13 +3,18 @@
 * 📄 [[Config File]]
 
 ## Documentation
+* 🖥️ [[Commands]]
 * 👥 [[Server Groups]]
 * 🎨 [[Formatting]]
 * 📛 [[Nametags]]
 * 📊 [[Sorting]]
 * ✍️ [[Placeholders]]
+* 🔗 [[Relational Placeholders]]
+* 🔀 [[Conditional Placeholders]]
+* 📝 [[Placeholders Replacements]]
 * ✨ [[Animations]]
 * 🖼️ [[Custom Logos]]
+* 🔗 [[Server Links]]
 * 📦 [[API]]
     * 📝 [[API Examples]]
     * 📝 [[Plugin Message API]]

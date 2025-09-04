@@ -22,6 +22,7 @@ package net.william278.velocitab.vanish;
 import com.velocitypowered.api.proxy.Player;
 import net.william278.velocitab.Velocitab;
 import net.william278.velocitab.player.TabPlayer;
+import net.william278.velocitab.util.DebugSystem;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
@@ -45,12 +46,24 @@ public class VanishManager {
         return integration;
     }
 
-    public boolean canSee(@NotNull String name, @NotNull String otherName) {
-        return integration.canSee(name, otherName);
+    public boolean canSee(@NotNull String viewer, @NotNull String target) {
+        final long start = System.currentTimeMillis();
+        final boolean result = integration.canSee(viewer, target);
+        final long end = System.currentTimeMillis();
+        if (end - start > 2) {
+            DebugSystem.log(DebugSystem.DebugLevel.DEBUG, "Vanish canSee check took " + (end - start) + "ms");
+        }
+        return result;
     }
 
     public boolean isVanished(@NotNull String name) {
-        return integration.isVanished(name);
+        final long start = System.currentTimeMillis();
+        final boolean result = integration.isVanished(name);
+        final long end = System.currentTimeMillis();
+        if (end - start > 2) {
+            DebugSystem.log(DebugSystem.DebugLevel.DEBUG, "Vanish isVanished check took " + (end - start) + "ms");
+        }
+        return result;
     }
 
     public void vanishPlayer(@NotNull Player player) {
@@ -61,7 +74,7 @@ public class VanishManager {
         }
 
         plugin.getTabList().getVanishTabList().vanishPlayer(tabPlayer.get());
-        plugin.getScoreboardManager().ifPresent(scoreboardManager -> scoreboardManager.vanishPlayer(tabPlayer.get()));
+        plugin.getScoreboardManager().vanishPlayer(tabPlayer.get());
     }
 
     public void unVanishPlayer(@NotNull Player player) {
@@ -72,6 +85,6 @@ public class VanishManager {
         }
 
         plugin.getTabList().getVanishTabList().unVanishPlayer(tabPlayer.get());
-        plugin.getScoreboardManager().ifPresent(scoreboardManager -> scoreboardManager.unVanishPlayer(tabPlayer.get()));
+        plugin.getScoreboardManager().unVanishPlayer(tabPlayer.get());
     }
 }

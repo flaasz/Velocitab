@@ -28,19 +28,50 @@ import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.william278.desertwell.about.AboutMenu;
 import net.william278.velocitab.Velocitab;
+import net.william278.velocitab.config.Group;
+import net.william278.velocitab.config.Settings;
+import net.william278.velocitab.config.TabGroups;
 import net.william278.velocitab.player.TabPlayer;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.event.Level;
 
-import java.util.Optional;
+import java.util.*;
 
 public final class VelocitabCommand {
-    private static final TextColor MAIN_COLOR = TextColor.color(0x00FB9A);
+
+    // System locales
+    private final String systemDumpConfirm = """
+            <color:#00fb9a><bold>Velocitab</bold></color> <color:#00fb9a>| Prepare a system dump? This will include:</color>
+            <gray>• Your latest server logs and Velocitab config files</gray>
+            <gray>• Current plugin system status information</gray>
+            <gray>• Information about your Java & Minecraft server environment</gray>
+            <gray>• A list of other currently installed plugins</gray>
+            <click:run_command:/velocitab dump confirm><hover:show_text:'<gray>Click to prepare dump'><color:#00fb9a>To confirm, use: <italic>/velocitab dump confirm</italic></color></click>
+            """;
+    private final String systemDumpStarted = "<color:#00fb9a><bold>Velocitab</bold></color> <color:#00fb9a>| Preparing system status dump, please wait…</color>";
+    private final String systemDumpReady = "<click:open_url:%url%><color:#00fb9a><bold>Velocitab</bold></color> <color:#00fb9a>| System status dump prepared! Click to view:</color>\n<underlined><color:gray>%url%</color></underlined></click>";
+    private final String systemUpToDate = "<color:#00fb9a><bold>Velocitab</bold></color> <color:#00fb9a>| You are running the latest version of Velocitab (v%ver%).</color>";
+    private final String systemUpdateAvailable = "<color:#00fb9a><bold>Velocitab</bold></color> <color:#00fb9a>| A new version of HuskClaims is available: v%new% (running: v%ver%).</color>";
+    private final String systemReloaded = "<color:#00fb9a><bold>Velocitab</bold></color> <color:#00fb9a>| Reloaded config and tab group files.</color>";
+
+    // Command locales
+    private final String tabNameUpdated = "<color:#00fb9a>Your TAB name has been updated!</color>";
+    private final String tabNameReset = "<color:#00fb9a>Your TAB name has been reset.</color>";
+
+    // Error locales
+    private final String errorPlayerNotFound = "<color:#ff3300>Error:</color> <color:#ff7e5e>Could not find the player %name%.</color>";
+    private final String errorTabNameChangeUntracked = "<color:#ff3300>Error:</color> <color:#ff7e5e>You cannot update your TAB name from an untracked server!</color>";
+    private final String errorTabNameResetUntracked = "<color:#ff3300>Error:</color> <color:#ff7e5e>You cannot reset your TAB name from an untracked server!</color>";
+    private final String errorTabNameResetUnchanged = "<color:#ff3300>Error:</color> <color:#ff7e5e>You do not have a custom TAB name!</color>";
+
     private final AboutMenu aboutMenu;
     private final Velocitab plugin;
 
-    public VelocitabCommand(final @NotNull Velocitab plugin) {
+    public VelocitabCommand(@NotNull Velocitab plugin) {
         this.plugin = plugin;
         this.aboutMenu = AboutMenu.builder()
                 .title(Component.text("Velocitab"))
@@ -76,78 +107,230 @@ public final class VelocitabCommand {
                         })
                 )
                 .then(LiteralArgumentBuilder.<CommandSource>literal("name")
-                        .requires(src -> src.hasPermission("velocitab.command.name"))
+                        .requires(src -> hasPermission(src, "name"))
                         .then(RequiredArgumentBuilder.<CommandSource, String>argument("name", StringArgumentType.greedyString())
+                                .requires(src -> src instanceof Player)
                                 .executes(ctx -> {
-                                    if (!(ctx.getSource() instanceof Player player)) {
-                                        ctx.getSource().sendMessage(Component.text("You must be a player to use this command!", MAIN_COLOR));
-                                        return Command.SINGLE_SUCCESS;
-                                    }
-
-                                    String name = StringArgumentType.getString(ctx, "name");
-                                    Optional<TabPlayer> tabPlayer = plugin.getTabList().getTabPlayer(player);
-
+                                    final Player player = (Player) ctx.getSource();
+                                    final String name = StringArgumentType.getString(ctx, "name");
+                                    final Optional<TabPlayer> tabPlayer = plugin.getTabList().getTabPlayer(player);
                                     if (tabPlayer.isEmpty()) {
-                                        ctx.getSource().sendMessage(Component.text("You must in a correct server!", MAIN_COLOR));
+                                        ctx.getSource().sendRichMessage(errorTabNameChangeUntracked);
                                         return Command.SINGLE_SUCCESS;
                                     }
 
                                     tabPlayer.get().setCustomName(name);
-                                    plugin.getTabList().updatePlayerDisplayName(tabPlayer.get());
+                                    plugin.getTabList().updateDisplayName(tabPlayer.get());
 
-                                    ctx.getSource().sendMessage(Component.text("Your name has been updated!", MAIN_COLOR));
-
+                                    ctx.getSource().sendRichMessage(tabNameUpdated);
                                     return Command.SINGLE_SUCCESS;
                                 })
-                        ).executes(ctx -> {
-                            if (!(ctx.getSource() instanceof Player player)) {
-                                ctx.getSource().sendMessage(Component.text("You must be a player to use this command!", MAIN_COLOR));
-                                return Command.SINGLE_SUCCESS;
-                            }
-
-                            Optional<TabPlayer> tabPlayer = plugin.getTabList().getTabPlayer(player);
-
+                        )
+                        .executes(ctx -> {
+                            final Player player = (Player) ctx.getSource();
+                            final Optional<TabPlayer> tabPlayer = plugin.getTabList().getTabPlayer(player);
                             if (tabPlayer.isEmpty()) {
-                                ctx.getSource().sendMessage(Component.text("You must in a correct server!", MAIN_COLOR));
+                                ctx.getSource().sendRichMessage(errorTabNameResetUntracked);
                                 return Command.SINGLE_SUCCESS;
                             }
 
                             // If no custom name is applied, ask for argument
                             String customName = tabPlayer.get().getCustomName().orElse("");
                             if (customName.isEmpty() || customName.equals(player.getUsername())) {
-                                ctx.getSource().sendMessage(Component.text("You must specify a name!", MAIN_COLOR));
+                                ctx.getSource().sendRichMessage(errorTabNameResetUnchanged);
                                 return Command.SINGLE_SUCCESS;
                             }
 
                             tabPlayer.get().setCustomName(null);
-                            plugin.getTabList().updatePlayerDisplayName(tabPlayer.get());
-                            player.sendMessage(Component.text("Your name has been reset!", MAIN_COLOR));
+                            plugin.getTabList().updateDisplayName(tabPlayer.get());
+                            ctx.getSource().sendRichMessage(tabNameReset);
                             return Command.SINGLE_SUCCESS;
                         })
                 )
                 .then(LiteralArgumentBuilder.<CommandSource>literal("reload")
-                        .requires(src -> src.hasPermission("velocitab.command.reload"))
+                        .requires(src -> hasPermission(src, "reload"))
                         .executes(ctx -> {
-                            plugin.loadConfigs();
+                            final Settings settings = plugin.getSettings();
+                            try {
+                                plugin.loadSettings();
+                            } catch (Throwable e) {
+                                plugin.setSettings(settings);
+                                ctx.getSource().sendRichMessage("<red>An error occurred while reloading the settings file");
+                                plugin.log(Level.ERROR, "An error occurred while reloading the settings file", e);
+                                return Command.SINGLE_SUCCESS;
+                            }
+
+                            final Map<String, Group> groups = Map.copyOf(plugin.getTabGroupsManager().getGroupsMap());
+                            final Map<TabGroups, String> groupsFiles = Map.copyOf(plugin.getTabGroupsManager().getGroupsFilesMap());
+
+                            try {
+                                plugin.getTabGroupsManager().loadGroups();
+                            } catch (Throwable e) {
+                                plugin.getTabGroupsManager().loadGroupsBackup(groups, groupsFiles);
+                                ctx.getSource().sendRichMessage("<red>An error occurred while reloading the tab groups file");
+                                plugin.log(Level.ERROR, "An error occurred while reloading the tab groups file", e);
+                                return Command.SINGLE_SUCCESS;
+                            }
+
                             plugin.getTabList().reloadUpdate();
-                            ctx.getSource().sendMessage(Component.text(
-                                    "Velocitab has been reloaded!",
-                                    MAIN_COLOR));
+                            ctx.getSource().sendRichMessage(systemReloaded);
                             return Command.SINGLE_SUCCESS;
                         })
                 )
+                .then(LiteralArgumentBuilder.<CommandSource>literal("debug")
+                        .requires(src -> hasPermission(src, "debug"))
+                        .then(LiteralArgumentBuilder.<CommandSource>literal("tabgroups")
+                                .then(RequiredArgumentBuilder.<CommandSource, String>argument("group", StringArgumentType.string())
+                                        .suggests((ctx, builder1) -> {
+                                            final String input = builder1.getRemainingLowerCase();
+                                            plugin.getTabGroupsManager().getGroups().stream()
+                                                    .map(Group::name)
+                                                    .filter(s -> input.isEmpty() || s.toLowerCase().contains(input))
+                                                    .forEach(builder1::suggest);
+                                            return builder1.buildFuture();
+                                        })
+                                        // players - headers - footers
+                                        .then(LiteralArgumentBuilder.<CommandSource>literal("players")
+                                                .executes(ctx -> {
+                                                    final String input = ctx.getArgument("group", String.class);
+                                                    final Optional<Group> optionalGroup = plugin.getTabGroupsManager().getGroup(input);
+                                                    if (optionalGroup.isEmpty()) {
+                                                        ctx.getSource().sendRichMessage(errorTabNameChangeUntracked);
+                                                        return Command.SINGLE_SUCCESS;
+                                                    }
+
+                                                    //send group info: players count(hover with player list sorted by their team name)
+
+                                                    final List<TabPlayer> players = optionalGroup.get().getTabPlayers(plugin)
+                                                            .stream()
+                                                            .sorted(Comparator.comparing(t -> -plugin.getScoreboardManager().getPosition(t.getTeamName())))
+                                                            .toList();
+
+                                                    Component playersCount = MiniMessage.miniMessage().deserialize("<yellow>Players:</yellow> <gray>%s".formatted(players.size()));
+                                                    final String join = joinPlayersName(players);
+                                                    Component playersCountHover = MiniMessage.miniMessage().deserialize("<yellow>Players:</yellow> <gray>%s".formatted(join));
+                                                    playersCount = playersCount.hoverEvent(playersCountHover);
+
+                                                    ctx.getSource().sendMessage(playersCount);
+                                                    return Command.SINGLE_SUCCESS;
+                                                })
+                                        )
+                                        .then(LiteralArgumentBuilder.<CommandSource>literal("header")
+                                                .executes(ctx -> {
+                                                    final String input = ctx.getArgument("group", String.class);
+                                                    final Optional<Group> optionalGroup = plugin.getTabGroupsManager().getGroup(input);
+                                                    if (optionalGroup.isEmpty()) {
+                                                        ctx.getSource().sendRichMessage(errorTabNameChangeUntracked);
+                                                        return Command.SINGLE_SUCCESS;
+                                                    }
+
+                                                    final Group group = optionalGroup.get();
+
+                                                    for (int i = 0; i < group.headers().size(); i++) {
+                                                        final String header = group.getHeader(i);
+
+                                                        Component headerComponent = MiniMessage.miniMessage().deserialize("<yellow>Header:</yellow> <gray>%s".formatted((i + 1)));
+                                                        Component headerHover = plugin.getFormatter().deserialize(header);
+                                                        headerComponent = headerComponent.hoverEvent(headerHover);
+                                                        ctx.getSource().sendMessage(headerComponent);
+                                                    }
+
+                                                    return Command.SINGLE_SUCCESS;
+                                                })
+                                        )
+                                        .then(LiteralArgumentBuilder.<CommandSource>literal("footer")
+                                                .executes(ctx -> {
+                                                    final String input = ctx.getArgument("group", String.class);
+                                                    final Optional<Group> optionalGroup = plugin.getTabGroupsManager().getGroup(input);
+                                                    if (optionalGroup.isEmpty()) {
+                                                        ctx.getSource().sendRichMessage(errorTabNameChangeUntracked);
+                                                        return Command.SINGLE_SUCCESS;
+                                                    }
+
+                                                    final Group group = optionalGroup.get();
+
+                                                    for (int i = 0; i < group.footers().size(); i++) {
+                                                        final String footer = group.getFooter(i);
+
+                                                        Component footerComponent = MiniMessage.miniMessage().deserialize("<yellow>Footer:</yellow> <gray>%s".formatted((i + 1)));
+                                                        Component footerHover = plugin.getFormatter().deserialize(footer);
+                                                        footerComponent = footerComponent.hoverEvent(footerHover);
+                                                        ctx.getSource().sendMessage(footerComponent);
+                                                    }
+
+                                                    return Command.SINGLE_SUCCESS;
+                                                })
+                                        )
+                                )
+                        )
+                        .then(LiteralArgumentBuilder.<CommandSource>literal("tablist")
+                                .then(RequiredArgumentBuilder.<CommandSource, String>argument("player", StringArgumentType.string())
+                                        .suggests((ctx, builder1) -> {
+                                            final String input = builder1.getRemainingLowerCase();
+                                            plugin.getServer().getAllPlayers().stream()
+                                                    .map(Player::getUsername)
+                                                    .filter(s -> input.isEmpty() || s.toLowerCase().contains(input))
+                                                    .forEach(builder1::suggest);
+                                            return builder1.buildFuture();
+                                        })
+                                        .executes(ctx -> {
+                                            final String input = ctx.getArgument("player", String.class);
+                                            final Optional<Player> player = plugin.getServer().getPlayer(input);
+                                            if (player.isEmpty()) {
+                                                ctx.getSource().sendRichMessage(errorPlayerNotFound
+                                                        .replaceAll("%name%", input));
+                                                return Command.SINGLE_SUCCESS;
+                                            }
+
+                                            player.get().getTabList().getEntries().forEach(entry -> {
+                                                final String name = entry.getProfile().getName();
+                                                final UUID uuid = entry.getProfile().getId();
+                                                final String unformattedDisplayName = entry.getDisplayNameComponent()
+                                                        .map(c -> PlainTextComponentSerializer.plainText().serialize(c))
+                                                        .orElse("empty");
+
+                                                final Component hover = MiniMessage.miniMessage().deserialize("<yellow>UUID:</yellow> <gray>%s<gray>".formatted(uuid))
+                                                        .appendNewline()
+                                                        .append(MiniMessage.miniMessage().deserialize("<yellow>Format</yellow>: ").append(entry.getDisplayNameComponent().orElse(Component.empty())));
+
+                                                final Component component = MiniMessage.miniMessage().deserialize("<gray>%s<gray> <yellow>-</yellow> <gray>%s"
+                                                                .formatted(name, unformattedDisplayName))
+                                                        .hoverEvent(hover);
+                                                ctx.getSource().sendMessage(component);
+                                            });
+
+                                            return Command.SINGLE_SUCCESS;
+                                        })
+                                )
+                        ))
+                .then(LiteralArgumentBuilder.<CommandSource>literal("dump")
+                        .requires(src -> hasPermission(src, "dump"))
+                        .executes(ctx -> {
+                            ctx.getSource().sendRichMessage(systemDumpConfirm.trim());
+                            return Command.SINGLE_SUCCESS;
+                        })
+                        .then(LiteralArgumentBuilder.<CommandSource>literal("confirm")
+                                .executes(ctx -> {
+                                    ctx.getSource().sendRichMessage(systemDumpStarted);
+                                    plugin.getServer().getScheduler().buildTask(plugin, () -> {
+                                        final String url = plugin.createDump(ctx.getSource());
+                                        ctx.getSource().sendRichMessage(systemDumpReady.replace("%url%", url));
+                                    }).schedule();
+                                    return Command.SINGLE_SUCCESS;
+                                })
+                        ))
                 .then(LiteralArgumentBuilder.<CommandSource>literal("update")
-                        .requires(src -> src.hasPermission("velocitab.command.update"))
+                        .requires(src -> hasPermission(src, "update"))
                         .executes(ctx -> {
                             plugin.getUpdateChecker().check().thenAccept(checked -> {
                                 if (checked.isUpToDate()) {
-                                    ctx.getSource().sendMessage(Component
-                                            .text("Velocitab is up to date! (Running v" + plugin.getVersion() + ")", MAIN_COLOR));
+                                    ctx.getSource().sendRichMessage(systemUpToDate
+                                            .replaceAll("%ver%", plugin.getVersion().toString()));
                                     return;
                                 }
-                                ctx.getSource().sendMessage(Component
-                                        .text("An update for velocitab is available. " +
-                                                "Please update to " + checked.getLatestVersion(), MAIN_COLOR));
+                                ctx.getSource().sendRichMessage(systemUpdateAvailable
+                                        .replaceAll("%new%", checked.getLatestVersion().toString())
+                                        .replaceAll("%ver%", plugin.getVersion().toString()));
                             });
                             return Command.SINGLE_SUCCESS;
                         })
@@ -156,7 +339,28 @@ public final class VelocitabCommand {
         return new BrigadierCommand(builder);
     }
 
+    @NotNull
+    private static String joinPlayersName(@NotNull List<TabPlayer> players) {
+        final StringBuilder join = new StringBuilder();
+        for(int i = 0; i < players.size(); i++) {
+            join.append("<yellow>%s</yellow>".formatted(players.get(i).getPlayer().getUsername()));
+            if (i != players.size() - 1) {
+                join.append("<gray>,</gray> ");
+            }
+            if (i % 4 == 0) {
+                join.append("<br>");
+            }
+        }
+
+        return join.toString();
+    }
+
+    private boolean hasPermission(@NotNull CommandSource source, @NotNull String command) {
+        return source.hasPermission(String.join(".", "velocitab", "command", command));
+    }
+
     private void sendAboutInfo(@NotNull CommandSource source) {
         source.sendMessage(aboutMenu.toComponent());
     }
+
 }

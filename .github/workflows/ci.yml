@@ -38,6 +38,22 @@ jobs:
       - name: Get Version
         run: |
           echo "version_name=${{steps.fetch-version.outputs.VERSION_NAME}}" >> $GITHUB_ENV
+      - name: 'Publish to William278.net 🚀'
+        uses: WiIIiam278/bones-publish-action@v1
+        with:
+          api-key: ${{ secrets.BONES_API_KEY }}
+          project: 'velocitab'
+          channel: 'alpha'
+          version: ${{ env.version_name }}
+          changelog: ${{ github.event.head_commit.message }}
+          distro-names: |
+            velocity
+          distro-groups: |
+            velocity
+          distro-descriptions: |
+            Velocity
+          files: |
+            target/Velocitab-${{ env.version_name }}.jar
       - name: 'Publish to Modrinth & Hangar 🧽'
         uses: WiIIiam278/mc-publish@hangar
         with:
@@ -49,7 +65,7 @@ jobs:
           hangar-token: ${{ secrets.HANGAR_API_KEY }}
           hangar-version-type: Alpha
           hangar-game-versions: |
-            3.3
+            3.4
           files: target/Velocitab-*.jar
           name: Velocitab v${{ env.version_name }}
           version: ${{ env.version_name }}
@@ -105,10 +121,13 @@ jobs:
             1.20.3
             1.20.4
             1.20.5
+            1.20.6
+            1.21
+            1.21.1
+            1.21.2
+            1.21.3
+            1.21.4
+            1.21.5
+            1.21.6
+            1.21.7
           java: 17
-      - name: 'Upload GitHub Artifact 📦'
-        uses: actions/upload-artifact@v4
-        if: success() || failure()
-        with:
-          name: Velocitab
-          path: target/Velocitab-*.jar

@@ -6,6 +6,9 @@ the server a player is on. You can also set formatting to use for [[Nametags]] a
 
 Groups are defined in `tab_groups.yml`, as a list of TabGroup elements.
 
+You can also add more tab groups by creating a folder called `tab_groups` in the `plugins/velocitab` folder, and adding
+a `other_tab_groups.yml` (you can use a custom name, it needs to be .yml) file to it.
+
 Every group must have a unique name, and a list of servers to include in the group. You can also define a list of
 sorting placeholders to use when sorting players in the TAB list, and a header/footer update rate and placeholder update
 rate to use for the group.
@@ -17,9 +20,9 @@ rate to use for the group.
 
 ```yaml
   headers:
-    - '&rainbow&Running Velocitab by William278'
+    - '<rainbow>Running Velocitab by William278 & AlexDev03</rainbow>'
   footers:
-    - '[There are currently %players_online%/%max_players_online% players online](gray)'
+    - '<gray>There are currently %players_online%/%max_players_online% players online</gray>'
 ```
 
 </details>
@@ -35,7 +38,7 @@ information.
 <summary>Example of format</summary>
 
 ```yaml
-  format: '&7[%server%] &f%prefix%%username%'
+  format: '<gray>[%server%] %prefix%%username%</gray>'
 ```
 
 </details>
@@ -51,8 +54,8 @@ Player formats may only utilize one line.
 
 ```yaml
   nametag:
-    prefix: '&f%prefix%'
-    suffix: '&f%suffix%'
+    prefix: '<white>%prefix%</white>'
+    suffix: '<white>%suffix%</white>'
 ```
 
 </details>
@@ -123,6 +126,34 @@ information.
 You can define a header/footer update rate to use for each group, in milliseconds. This will determine how quickly the
 headers and footers will cycle through in the TAB list. The default is 1000 milliseconds (1 second).
 
+## Format update rate
+
+<details>
+<summary>Example of format update rate</summary>
+
+```yaml
+  format_update_rate: 1000
+```
+
+</details>
+
+You can define a format update rate to use for each group, in milliseconds. This will determine how quickly the
+formats will update in the TAB list.
+
+## Nametag update rate (sorting)
+
+<details>
+<summary>Example of nametag update rate</summary>
+
+```yaml
+  nametag_update_rate: 1000
+```
+
+</details>
+
+You can define a nametag update rate to use for each group, in milliseconds. This will determine how quickly the
+nametags will update in the TAB list. This will also determine how quickly the sorting will update.
+
 ## Placeholder update rate
 
 <details>
@@ -148,10 +179,10 @@ placeholders in the TAB list will update. The default is 1000 milliseconds (1 se
 groups:
   - name: lobbies
     headers:
-      - '&rainbow&Running Velocitab by William278 on Lobbies!'
+      - '<rainbow:!2>Running Velocitab by William278 & AlexDev03 on Lobbies!</rainbow>'
     footers:
-      - '[There are currently %players_online%/%max_players_online% players online](gray)'
-    format: '&7[%server%] &f%prefix%%username%'
+      - '<gray>There are currently %players_online%/%max_players_online% players online</gray>'
+    format: '<gray>[%server%] %prefix%%username%</gray>'
     servers:
       - lobby
       - hub
@@ -161,34 +192,49 @@ groups:
     sorting_placeholders:
       - '%role_weight%'
       - '%username_lower%'
+    placeholder_replacements: {}
+    collisions: false
     header_footer_update_rate: 1000
+    footer_update_rate: 1000
+    nametag_update_rate: 1000
     placeholder_update_rate: 1000
+    only_list_players_in_same_server: false
   - name: creative
     headers:
-      - '&rainbow&Running Velocitab by William278 on Creative!'
+      - '<rainbow:!2>Running Velocitab by William278 & AlexDev03 on Creative!</rainbow>'
     footers:
-      - '[There are currently %players_online%/%max_players_online% players online](gray)'
-    format: '&7[%server%] &f%prefix%%username%'
+      - '<gray>There are currently %players_online%/%max_players_online% players online</gray>'
+    format: '<gray>[%server%] %prefix%%username%</gray>'
     servers:
       - creative
     sorting_placeholders:
       - '%role_weight%'
       - '%username_lower%'
+    placeholder_replacements: {}
+    collisions: false
     header_footer_update_rate: 1000
+    footer_update_rate: 1000
+    nametag_update_rate: 1000
     placeholder_update_rate: 1000
+    only_list_players_in_same_server: false
   - name: survival
     headers:
-      - '&rainbow&Running Velocitab by William278 on Survival!'
+      - '<rainbow:!2>Running Velocitab by William278 & AlexDev03 on Survival!</rainbow>'
     footers:
-      - '[There are currently %players_online%/%max_players_online% players online](gray)'
-    format: '&7[%server%] &f%prefix%%username%'
+      - '<gray>There are currently %players_online%/%max_players_online% players online</gray>'
+    format: '<gray>[%server%] %prefix%%username%</gray>'
     servers:
       - survival
     sorting_placeholders:
       - '%role_weight%'
       - '%username_lower%'
+    placeholder_replacements: {}
+    collisions: false
     header_footer_update_rate: 1000
+    footer_update_rate: 1000
+    nametag_update_rate: 1000
     placeholder_update_rate: 1000
+    only_list_players_in_same_server: false
   ```
 
 </details>
@@ -218,3 +264,8 @@ fallback_group: 'lobbies'
 ```
 
 </details>
+
+## Placeholders Replacements
+
+Used to customize final result of placeholders based on placeholders values
+See [[Placeholders-Replacements]] for more information.

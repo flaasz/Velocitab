@@ -64,7 +64,6 @@ public class Role implements Comparable<Role> {
         return Optional.ofNullable(suffix);
     }
 
-    @NotNull
     protected String getWeightString() {
         return Integer.toString(weight);
     }

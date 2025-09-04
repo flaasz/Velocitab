@@ -19,6 +19,8 @@
 
 package net.william278.velocitab.config;
 
+import com.velocitypowered.api.plugin.PluginContainer;
+import com.velocitypowered.api.plugin.PluginDescription;
 import de.exlll.configlib.NameFormatters;
 import de.exlll.configlib.YamlConfigurationProperties;
 import de.exlll.configlib.YamlConfigurations;
@@ -80,7 +82,7 @@ public interface ConfigProvider {
                 Settings.class,
                 YAML_CONFIGURATION_PROPERTIES.header(Settings.CONFIG_HEADER).build()
         ));
-        getSettings().validateConfig(getPlugin());
+        getSettings().validateConfig(getPlugin(), "config.yml");
     }
 
     /**
@@ -90,15 +92,15 @@ public interface ConfigProvider {
      * @since 1.0
      */
     @NotNull
-    TabGroups getTabGroups();
+    TabGroupsManager getTabGroupsManager();
 
     /**
      * Set the tab groups
      *
-     * @param tabGroups The tab groups to set
-     * @since 1.0
+     * @param tabGroupsManager The tab groups to set
+     * @since 1.7.4
      */
-    void setTabGroups(@NotNull TabGroups tabGroups);
+    void setTabGroupsManager(@NotNull TabGroupsManager tabGroupsManager);
 
     /**
      * Load the tab groups from the config file
@@ -106,12 +108,8 @@ public interface ConfigProvider {
      * @since 1.0
      */
     default void loadTabGroups() {
-        setTabGroups(YamlConfigurations.update(
-                getConfigDirectory().resolve("tab_groups.yml"),
-                TabGroups.class,
-                YAML_CONFIGURATION_PROPERTIES.header(TabGroups.CONFIG_HEADER).build()
-        ));
-        getTabGroups().validateConfig(getPlugin());
+        setTabGroupsManager(new TabGroupsManager(getPlugin()));
+        getTabGroupsManager().loadGroups();
     }
 
     /**
@@ -129,16 +127,24 @@ public interface ConfigProvider {
         }
     }
 
+    @SuppressWarnings("OptionalIsPresent")
     default void checkCompatibility() {
         if (getSkipCompatibilityCheck().orElse(false)) {
-            getPlugin().getLogger().warn("Skipping compatibility check");
+            getPlugin().getLogger().warn("Skipping compatibility checks");
             return;
         }
 
+        // Validate Velocity platform version
         final Metadata metadata = getMetadata();
         final Version proxyVersion = getVelocityVersion();
         metadata.validateApiVersion(proxyVersion);
         metadata.validateBuild(proxyVersion);
+
+        // Validate PAPIProxyBridge hook version
+        final Optional<Version> papiProxyBridgeVersion = getPapiProxyBridgeVersion();
+        if (papiProxyBridgeVersion.isPresent()) {
+            metadata.validatePapiProxyBridgeVersion(papiProxyBridgeVersion.get());
+        }
     }
 
     @NotNull
@@ -151,25 +157,14 @@ public interface ConfigProvider {
                 .findFirst();
     }
 
+    default Optional<Version> getPapiProxyBridgeVersion() {
+        return getPlugin().getServer().getPluginManager()
+                .getPlugin("papiproxybridge").map(PluginContainer::getDescription)
+                .flatMap(PluginDescription::getVersion).map(Version::fromString);
+    }
+
     @NotNull
     Version getVelocityVersion();
-
-    /**
-     * Saves the tab groups to the "tab_groups.yml" config file.
-     * Uses the YamlConfigurations.save method to write the tab groups object to the specified config file path.
-     * This method assumes that the getConfigDirectory method returns a valid directory path.
-     *
-     * @throws IllegalStateException if the getConfigDirectory method returns null
-     * @since 1.0
-     */
-    default void saveTabGroups() {
-        YamlConfigurations.save(
-                getConfigDirectory().resolve("tab_groups.yml"),
-                TabGroups.class,
-                getTabGroups(),
-                YAML_CONFIGURATION_PROPERTIES.header(TabGroups.CONFIG_HEADER).build()
-        );
-    }
 
     /**
      * Get the plugin config directory

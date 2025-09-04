@@ -27,7 +27,7 @@ import lombok.NoArgsConstructor;
 import net.william278.velocitab.Velocitab;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Map;
+import java.util.List;
 
 
 @SuppressWarnings("FieldMayBeFinal")
@@ -39,7 +39,7 @@ public class Settings implements ConfigValidator {
     public static final String CONFIG_HEADER = """
             ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
             ┃       Velocitab Config       ┃
-            ┃    Developed by William278   ┃
+            ┃  by William278 & AlexDev03   ┃
             ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
             ┣╸ Information: https://william278.net/project/velocitab
             ┗╸ Documentation: https://william278.net/docs/velocitab""";
@@ -53,8 +53,8 @@ public class Settings implements ConfigValidator {
     @Comment("Whether to disable header and footer if they are empty and let backend servers handle them.")
     private boolean disableHeaderFooterIfEmpty = true;
 
-    @Comment("Which text formatter to use (MINEDOWN, MINIMESSAGE, or LEGACY)")
-    private Formatter formatter = Formatter.MINEDOWN;
+    @Comment("Which text formatter to use (MINIMESSAGE, MINEDOWN or LEGACY)")
+    private Formatter formatter = Formatter.MINIMESSAGE;
 
     @Comment("All servers which are not in other groups will be put in the fallback group."
             + "\n\"false\" will exclude them from Velocitab.")
@@ -65,10 +65,6 @@ public class Settings implements ConfigValidator {
 
     @Comment("Whether to show all players from all groups in the TAB list.")
     private boolean showAllPlayersFromAllGroups = false;
-
-    @Comment("Define custom names to be shown in the TAB list for specific server names."
-            + "\nIf no custom display name is provided for a server, its original name will be used.")
-    private Map<String, String> serverDisplayNames = Map.of("very-long-server-name", "VLSN");
 
     @Comment("Whether to enable the PAPIProxyBridge hook for PAPI support")
     private boolean enablePapiHook = true;
@@ -96,21 +92,37 @@ public class Settings implements ConfigValidator {
     @Comment("Whether to enable the Plugin Message API (allows backend plugins to perform certain operations)")
     private boolean enablePluginMessageApi = true;
 
-    /**
-     * Get display name for the server
-     *
-     * @param serverName The server name
-     * @return The display name, or the server name if no display name is defined
-     */
+    @Comment("Whether to force sending tab list packets to all players, even if a packet for that action has already been sent. This could fix issues with some mods.")
+    private boolean forceSendingTabListPackets = false;
+
+    @Comment("Whether to enable relational placeholders. With an high amount of players, this could cause lag.")
+    private boolean enableRelationalPlaceholders = false;
+
+    @Comment({"A list of links that will be sent to display on player pause menus (Minecraft 1.21+ clients only).",
+            "• Labels can be fully custom or built-in (one of 'bug_report', 'community_guidelines', 'support', 'status',",
+            "  'feedback', 'community', 'website', 'forums', 'news', or 'announcements').",
+            "• If you supply a url with a 'bug_report' label, it will be shown if the player is disconnected.",
+            "• Specify a set of server groups each URL should be sent on. Use '*' to show a URL to all groups."})
+    private List<ServerUrl> serverLinks = List.of(
+            new ServerUrl(
+                    "<#00fb9a>About Velocitab</#00fb9a>",
+                    "https://william278.net/project/velocitab"
+            )
+    );
+
     @NotNull
-    public String getServerDisplayName(@NotNull String serverName) {
-        return serverDisplayNames.getOrDefault(serverName, serverName);
+    public List<ServerUrl> getUrlsForGroup(@NotNull Group group) {
+        return serverLinks.stream()
+                .filter(link -> link.groups().contains("*") || link.groups().contains(group.name()))
+                .toList();
     }
 
     @Override
-    public void validateConfig(@NotNull Velocitab plugin) {
+    public void validateConfig(@NotNull Velocitab plugin, @NotNull String name) {
         if (papiCacheTime < 0) {
             throw new IllegalStateException("PAPI cache time must be greater than or equal to 0");
         }
+        serverLinks.forEach(ServerUrl::validate);
     }
+
 }

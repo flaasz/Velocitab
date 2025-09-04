@@ -36,7 +36,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Getter
@@ -64,21 +65,29 @@ public class UpdateTeamsPacket implements MinecraftPacket {
         this.plugin = plugin;
     }
 
+    public boolean isRemoveTeam() {
+        return mode == UpdateMode.REMOVE_TEAM;
+    }
+
+    public boolean hasEntities() {
+        return entities != null && !entities.isEmpty();
+    }
+
     @NotNull
     protected static UpdateTeamsPacket create(@NotNull Velocitab plugin, @NotNull TabPlayer tabPlayer,
-                                              @NotNull String teamName,
-                                              @NotNull Nametag nametag,
+                                              @NotNull String teamName, @NotNull Nametag nametag,
+                                              @NotNull TabPlayer viewer,
                                               @NotNull String... teamMembers) {
         return new UpdateTeamsPacket(plugin)
-                .teamName(teamName.length() > 16 ? teamName.substring(0, 16) : teamName)
+                .teamName(teamName)
                 .mode(UpdateMode.CREATE_TEAM)
                 .displayName(Component.empty())
                 .friendlyFlags(List.of(FriendlyFlag.CAN_HURT_FRIENDLY))
                 .nametagVisibility(isNametagPresent(nametag, plugin) ? NametagVisibility.ALWAYS : NametagVisibility.NEVER)
                 .collisionRule(tabPlayer.getGroup().collisions() ? CollisionRule.ALWAYS : CollisionRule.NEVER)
                 .color(getLastColor(tabPlayer, nametag.prefix(), plugin))
-                .prefix(nametag.getPrefixComponent(plugin, tabPlayer))
-                .suffix(nametag.getSuffixComponent(plugin, tabPlayer))
+                .prefix(nametag.getPrefixComponent(plugin, tabPlayer, viewer))
+                .suffix(nametag.getSuffixComponent(plugin, tabPlayer, viewer))
                 .entities(Arrays.asList(teamMembers));
     }
 
@@ -92,25 +101,25 @@ public class UpdateTeamsPacket implements MinecraftPacket {
 
     @NotNull
     protected static UpdateTeamsPacket changeNametag(@NotNull Velocitab plugin, @NotNull TabPlayer tabPlayer,
-                                                     @NotNull String teamName,
+                                                     @NotNull String teamName, @NotNull TabPlayer viewer,
                                                      @NotNull Nametag nametag) {
         return new UpdateTeamsPacket(plugin)
-                .teamName(teamName.length() > 16 ? teamName.substring(0, 16) : teamName)
+                .teamName(teamName)
                 .mode(UpdateMode.UPDATE_INFO)
                 .displayName(Component.empty())
                 .friendlyFlags(List.of(FriendlyFlag.CAN_HURT_FRIENDLY))
                 .nametagVisibility(isNametagPresent(nametag, plugin) ? NametagVisibility.ALWAYS : NametagVisibility.NEVER)
                 .collisionRule(tabPlayer.getGroup().collisions() ? CollisionRule.ALWAYS : CollisionRule.NEVER)
                 .color(getLastColor(tabPlayer, nametag.prefix(), plugin))
-                .prefix(nametag.getPrefixComponent(plugin, tabPlayer))
-                .suffix(nametag.getSuffixComponent(plugin, tabPlayer));
+                .prefix(nametag.getPrefixComponent(plugin, tabPlayer, viewer))
+                .suffix(nametag.getSuffixComponent(plugin, tabPlayer, viewer));
     }
 
     @NotNull
     protected static UpdateTeamsPacket addToTeam(@NotNull Velocitab plugin, @NotNull String teamName,
                                                  @NotNull String... teamMembers) {
         return new UpdateTeamsPacket(plugin)
-                .teamName(teamName.length() > 16 ? teamName.substring(0, 16) : teamName)
+                .teamName(teamName)
                 .mode(UpdateMode.ADD_PLAYERS)
                 .entities(Arrays.asList(teamMembers));
     }
@@ -119,7 +128,7 @@ public class UpdateTeamsPacket implements MinecraftPacket {
     protected static UpdateTeamsPacket removeFromTeam(@NotNull Velocitab plugin, @NotNull String teamName,
                                                       @NotNull String... teamMembers) {
         return new UpdateTeamsPacket(plugin)
-                .teamName(teamName.length() > 16 ? teamName.substring(0, 16) : teamName)
+                .teamName(teamName)
                 .mode(UpdateMode.REMOVE_PLAYERS)
                 .entities(Arrays.asList(teamMembers));
     }
@@ -127,7 +136,7 @@ public class UpdateTeamsPacket implements MinecraftPacket {
     @NotNull
     protected static UpdateTeamsPacket removeTeam(@NotNull Velocitab plugin, @NotNull String teamName) {
         return new UpdateTeamsPacket(plugin)
-                .teamName(teamName.length() > 16 ? teamName.substring(0, 16) : teamName)
+                .teamName(teamName)
                 .mode(UpdateMode.REMOVE_TEAM);
     }
 
@@ -144,10 +153,10 @@ public class UpdateTeamsPacket implements MinecraftPacket {
         text = text + "z";
 
         //serialize & deserialize to downsample rgb to legacy
-        Component component = plugin.getFormatter().emptyFormat(text);
+        final Component component = plugin.getFormatter().deserialize(text);
         text = LegacyComponentSerializer.legacyAmpersand().serialize(component);
 
-        int lastFormatIndex = text.lastIndexOf("&");
+        final int lastFormatIndex = text.lastIndexOf("&");
         if (lastFormatIndex == -1 || lastFormatIndex == text.length() - 1) {
             return 15;
         }
@@ -175,11 +184,14 @@ public class UpdateTeamsPacket implements MinecraftPacket {
         YELLOW('e', 14),
         WHITE('f', 15),
         OBFUSCATED('k', 16),
-        BOLD('f', 17),
-        STRIKETHROUGH('f', 18),
-        UNDERLINED('f', 19),
-        ITALIC('f', 20),
+        BOLD('l', 17),
+        STRIKETHROUGH('m', 18),
+        UNDERLINED('n', 19),
+        ITALIC('o', 20),
         RESET('r', 21);
+
+        private static final Map<Character, TeamColor> BY_ID = Arrays.stream(values())
+                .collect(Collectors.toMap(TeamColor::colorChar, Function.identity()));
 
         @Getter
         private final char colorChar;
@@ -191,26 +203,24 @@ public class UpdateTeamsPacket implements MinecraftPacket {
         }
 
         public static int getColorId(char var) {
-            return Arrays.stream(values())
-                    .filter(color -> color.colorChar == var)
-                    .map(c -> c.id).findFirst()
-                    .orElse(15);
+            return BY_ID.getOrDefault(var, TeamColor.RESET).id;
+        }
+
+        public static TeamColor getColor(char var) {
+            return BY_ID.getOrDefault(var, TeamColor.RESET);
         }
     }
 
     @Override
     public void decode(ByteBuf byteBuf, ProtocolUtils.Direction direction, ProtocolVersion protocolVersion) {
-        throw new UnsupportedOperationException("Operation not supported");
+        final ScoreboardManager scoreboardManager = plugin.getScoreboardManager();
+        scoreboardManager.getPacketAdapter(protocolVersion).decode(byteBuf, this, protocolVersion);
     }
 
     @Override
     public void encode(ByteBuf byteBuf, ProtocolUtils.Direction direction, ProtocolVersion protocolVersion) {
-        final Optional<ScoreboardManager> optionalManager = plugin.getScoreboardManager();
-
-        if (optionalManager.isEmpty()) {
-            return;
-        }
-        optionalManager.get().getPacketAdapter(protocolVersion).encode(byteBuf, this, protocolVersion);
+        final ScoreboardManager scoreboardManager = plugin.getScoreboardManager();
+        scoreboardManager.getPacketAdapter(protocolVersion).encode(byteBuf, this, protocolVersion);
     }
 
     @Override
@@ -225,6 +235,9 @@ public class UpdateTeamsPacket implements MinecraftPacket {
         ADD_PLAYERS((byte) 3),
         REMOVE_PLAYERS((byte) 4);
 
+        private static final Map<Byte, UpdateMode> BY_ID = Arrays.stream(values())
+                .collect(Collectors.toMap(UpdateMode::id, Function.identity()));
+
         private final byte id;
 
         UpdateMode(byte id) {
@@ -237,16 +250,15 @@ public class UpdateTeamsPacket implements MinecraftPacket {
 
         @Nullable
         public static UpdateMode byId(byte id) {
-            return Arrays.stream(values())
-                    .filter(mode -> mode.id == id)
-                    .findFirst()
-                    .orElse(null);
+            return BY_ID.getOrDefault(id, null);
         }
     }
 
     public enum FriendlyFlag {
         CAN_HURT_FRIENDLY(0x01),
         CAN_HURT_FRIENDLY_FIRE(0x02);
+
+        private static final List<FriendlyFlag> BY_ID = Arrays.stream(values()).toList();
 
         private final int id;
 
@@ -256,7 +268,7 @@ public class UpdateTeamsPacket implements MinecraftPacket {
 
         @NotNull
         public static List<FriendlyFlag> fromBitMask(int bitMask) {
-            return Arrays.stream(values())
+            return BY_ID.stream()
                     .filter(flag -> (bitMask & flag.id) != 0)
                     .collect(Collectors.toList());
         }
@@ -276,6 +288,11 @@ public class UpdateTeamsPacket implements MinecraftPacket {
         HIDE_FOR_OTHER_TEAMS("hideForOtherTeams"),
         HIDE_FOR_OWN_TEAM("hideForOwnTeam");
 
+        private static final Map<String, NametagVisibility> BY_ID = Arrays.stream(values())
+                .collect(Collectors.toMap(NametagVisibility::id, Function.identity()));
+        private static final Map<Integer, NametagVisibility> BY_ORDINAL = Arrays.stream(values())
+                .collect(Collectors.toMap(NametagVisibility::ordinal, Function.identity()));
+
         private final String id;
 
         NametagVisibility(@NotNull String id) {
@@ -289,10 +306,12 @@ public class UpdateTeamsPacket implements MinecraftPacket {
 
         @NotNull
         public static NametagVisibility byId(@Nullable String id) {
-            return id == null ? ALWAYS : Arrays.stream(values())
-                    .filter(visibility -> visibility.id.equals(id))
-                    .findFirst()
-                    .orElse(ALWAYS);
+            return id == null ? ALWAYS : BY_ID.getOrDefault(id, ALWAYS);
+        }
+
+        @NotNull
+        public static NametagVisibility byOrdinal(int ordinal) {
+            return BY_ORDINAL.getOrDefault(ordinal, ALWAYS);
         }
     }
 
@@ -301,6 +320,11 @@ public class UpdateTeamsPacket implements MinecraftPacket {
         NEVER("never"),
         PUSH_OTHER_TEAMS("pushOtherTeams"),
         PUSH_OWN_TEAM("pushOwnTeam");
+
+        private static final Map<String, CollisionRule> BY_ID = Arrays.stream(values())
+                .collect(Collectors.toMap(CollisionRule::id, Function.identity()));
+        private static final Map<Integer, CollisionRule> BY_ORDINAL = Arrays.stream(values())
+                .collect(Collectors.toMap(CollisionRule::ordinal, Function.identity()));
 
         private final String id;
 
@@ -315,10 +339,12 @@ public class UpdateTeamsPacket implements MinecraftPacket {
 
         @NotNull
         public static CollisionRule byId(@Nullable String id) {
-            return id == null ? ALWAYS : Arrays.stream(values())
-                    .filter(rule -> rule.id.equals(id))
-                    .findFirst()
-                    .orElse(ALWAYS);
+            return id == null ? ALWAYS : BY_ID.getOrDefault(id, ALWAYS);
+        }
+
+        @NotNull
+        public static CollisionRule byOrdinal(int ordinal) {
+            return BY_ORDINAL.getOrDefault(ordinal, ALWAYS);
         }
     }
 }

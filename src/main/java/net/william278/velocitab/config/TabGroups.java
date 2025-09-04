@@ -40,21 +40,24 @@ public class TabGroups implements ConfigValidator {
 
     public static final String CONFIG_HEADER = """
             ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-            ┃      Velocitab TabGroups     ┃
-            ┃    Developed by William278   ┃
+            ┃     Velocitab Tab Groups     ┃
+            ┃  by William278 & AlexDev03   ┃
             ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
             ┣╸ Information: https://william278.net/project/velocitab
             ┗╸ Documentation: https://william278.net/docs/velocitab""";
 
     private static final Group DEFAULT_GROUP = new Group(
             "default",
-            List.of("&rainbow&Running Velocitab by William278"),
-            List.of("[There are currently %players_online%/%max_players_online% players online](gray)"),
-            "&7[%server%] &f%prefix%%username%",
-            new Nametag("&f%prefix%", "&f%suffix%"),
+            List.of("<rainbow:!2>Running Velocitab by William278 & AlexDev03</rainbow>"),
+            List.of("<gray>There are currently %players_online%/%max_players_online% players online</gray>"),
+            "<gray>[%server%] %prefix%%username%</gray>",
+            new Nametag("", ""),
             Set.of("lobby", "survival", "creative", "minigames", "skyblock", "prison", "hub"),
             List.of("%role_weight%", "%username_lower%"),
+            Map.of(),
             false,
+            1000,
+            1000,
             1000,
             1000,
             false
@@ -63,53 +66,29 @@ public class TabGroups implements ConfigValidator {
     public List<Group> groups = List.of(DEFAULT_GROUP);
 
     @NotNull
+    @SuppressWarnings("unused")
     public Group getGroupFromName(@NotNull String name) {
         return groups.stream()
                 .filter(group -> group.name().equals(name))
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No group with name " + name + " found"));
+                .orElseThrow(() -> new IllegalStateException("No group with name %s found".formatted(name)));
     }
 
-    @NotNull
     public Optional<Group> getGroup(@NotNull String name) {
         return groups.stream()
                 .filter(group -> group.name().equals(name))
                 .findFirst();
     }
 
-    @NotNull
-    public Group getGroupFromServer(@NotNull String server, @NotNull Velocitab plugin) {
-        final List<Group> groups = new ArrayList<>(this.groups);
-        final Optional<Group> defaultGroup = getGroup("default");
-        // Ensure the default group is always checked last
-        if (defaultGroup.isPresent()) {
-            groups.remove(defaultGroup.get());
-            groups.add(defaultGroup.get());
-        } else {
-            throw new IllegalStateException("No default group found");
-        }
-        for (Group group : groups) {
-            if (group.registeredServers(plugin, false)
-                    .stream()
-                    .anyMatch(s -> s.getServerInfo().getName().equalsIgnoreCase(server))) {
-                return group;
-            }
-        }
-        return getGroupFromName("default");
-    }
-
-    public int getPosition(@NotNull Group group) {
-        return groups.indexOf(group) + 1;
-    }
-
-
     @Override
-    public void validateConfig(@NotNull Velocitab plugin) {
-        if (groups.isEmpty()) {
-            throw new IllegalStateException("No tab groups defined in config");
-        }
-        if (groups.stream().noneMatch(group -> group.name().equals("default"))) {
-            throw new IllegalStateException("No default tab group defined in config");
+    public void validateConfig(@NotNull Velocitab plugin, @NotNull String name) {
+        if(name.equals("tab_groups")) {
+            if (groups.isEmpty()) {
+                throw new IllegalStateException("No tab groups defined in config " + name);
+            }
+            if (groups.stream().noneMatch(group -> group.name().equals("default"))) {
+                throw new IllegalStateException("No default tab group defined in config " + name);
+            }
         }
 
         final Multimap<Group, String> missingKeys = getMissingKeys();
@@ -117,7 +96,7 @@ public class TabGroups implements ConfigValidator {
             return;
         }
 
-        fixMissingKeys(plugin, missingKeys);
+        fixMissingKeys(plugin, missingKeys, name);
     }
 
     @NotNull
@@ -137,12 +116,32 @@ public class TabGroups implements ConfigValidator {
             if (group.sortingPlaceholders() == null) {
                 missingKeys.put(group, "sortingPlaceholders");
             }
+
+            if (group.placeholderReplacements() == null) {
+                missingKeys.put(group, "placeholderReplacements");
+            }
+
+            if (group.headerFooterUpdateRate() == 0) {
+                missingKeys.put(group, "headerFooterUpdateRate");
+            }
+
+            if (group.formatUpdateRate() == 0) {
+                missingKeys.put(group, "formatUpdateRate");
+            }
+
+            if (group.nametagUpdateRate() == 0) {
+                missingKeys.put(group, "nametagUpdateRate");
+            }
+
+            if (group.placeholderUpdateRate() == 0) {
+                missingKeys.put(group, "placeholderUpdateRate");
+            }
         }
 
         return missingKeys;
     }
 
-    private void fixMissingKeys(@NotNull Velocitab plugin, @NotNull Multimap<Group, String> missingKeys) {
+    private void fixMissingKeys(@NotNull Velocitab plugin, @NotNull Multimap<Group, String> missingKeys, @NotNull String name) {
         missingKeys.forEach((group, keys) -> {
             plugin.log("Missing required key(s) " + keys + " for group " + group.name());
             plugin.log("Using default values for group " + group.name());
@@ -157,15 +156,18 @@ public class TabGroups implements ConfigValidator {
                     group.nametag() == null ? DEFAULT_GROUP.nametag() : group.nametag(),
                     group.servers() == null ? DEFAULT_GROUP.servers() : group.servers(),
                     group.sortingPlaceholders() == null ? DEFAULT_GROUP.sortingPlaceholders() : group.sortingPlaceholders(),
+                    group.placeholderReplacements() == null ? DEFAULT_GROUP.placeholderReplacements() : group.placeholderReplacements(),
                     group.collisions(),
-                    group.headerFooterUpdateRate(),
-                    group.placeholderUpdateRate(),
+                    group.headerFooterUpdateRate() == 0 ? DEFAULT_GROUP.headerFooterUpdateRate() : group.headerFooterUpdateRate(),
+                    group.formatUpdateRate() == 0 ? DEFAULT_GROUP.formatUpdateRate() : group.formatUpdateRate(),
+                    group.nametagUpdateRate() == 0 ? DEFAULT_GROUP.nametagUpdateRate() : group.nametagUpdateRate(),
+                    group.placeholderUpdateRate() == 0 ? DEFAULT_GROUP.placeholderUpdateRate() : group.placeholderUpdateRate(),
                     group.onlyListPlayersInSameServer()
             );
 
             groups.add(group);
         });
 
-        plugin.saveTabGroups();
+        plugin.getTabGroupsManager().saveGroup(this);
     }
 }

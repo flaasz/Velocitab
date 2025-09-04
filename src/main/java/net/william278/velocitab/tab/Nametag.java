@@ -30,13 +30,15 @@ import org.jetbrains.annotations.NotNull;
 public record Nametag(@NotNull String prefix, @NotNull String suffix) {
 
     @NotNull
-    public Component getPrefixComponent(@NotNull Velocitab plugin, @NotNull TabPlayer tabPlayer) {
-        return plugin.getFormatter().format(prefix, tabPlayer, plugin);
+    public Component getPrefixComponent(@NotNull Velocitab plugin, @NotNull TabPlayer tabPlayer, @NotNull TabPlayer target) {
+        final String formatted = plugin.getPlaceholderManager().applyPlaceholders(tabPlayer, prefix, target);
+        return plugin.getFormatter().format(formatted, tabPlayer, target, plugin);
     }
 
     @NotNull
-    public Component getSuffixComponent(@NotNull Velocitab plugin, @NotNull TabPlayer tabPlayer) {
-        return plugin.getFormatter().format(suffix, tabPlayer, plugin);
+    public Component getSuffixComponent(@NotNull Velocitab plugin, @NotNull TabPlayer tabPlayer, @NotNull TabPlayer target) {
+        final String formatted = plugin.getPlaceholderManager().applyPlaceholders(tabPlayer, suffix, target);
+        return plugin.getFormatter().format(formatted, tabPlayer, target, plugin);
     }
 
     @Override
@@ -45,6 +47,10 @@ public record Nametag(@NotNull String prefix, @NotNull String suffix) {
             return false;
         }
         return (prefix.equals(other.prefix)) && (suffix.equals(other.suffix));
+    }
+
+    public boolean isEmpty() {
+        return prefix.isEmpty() && suffix.isEmpty();
     }
 
 }

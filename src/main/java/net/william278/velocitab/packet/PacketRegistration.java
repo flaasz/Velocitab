@@ -30,10 +30,7 @@ import org.jetbrains.annotations.NotNull;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Supplier;
 
 // Based on VPacketEvents PacketRegistration API
@@ -105,7 +102,7 @@ public final class PacketRegistration<P extends MinecraftPacket> {
                 try {
                     IntObjectMap<Supplier<?>> packetIdToSupplier = (IntObjectMap<Supplier<?>>) PACKET_REGISTRY$packetIdToSupplier.invoke(protocolRegistry);
                     Object2IntMap<Class<?>> packetClassToId = (Object2IntMap<Class<?>>) PACKET_REGISTRY$packetClassToId.invoke(protocolRegistry);
-                    packetIdToSupplier.keySet().stream()
+                    Set.copyOf(packetIdToSupplier.keySet()).stream()
                             .filter(supplier -> packetIdToSupplier.get(supplier).get().getClass().equals(packetClass))
                             .forEach(packetIdToSupplier::remove);
                     packetClassToId.values().intStream()
@@ -141,20 +138,31 @@ public final class PacketRegistration<P extends MinecraftPacket> {
         final MethodHandles.Lookup lookup = MethodHandles.lookup();
         try {
             final MethodHandles.Lookup stateRegistryLookup = MethodHandles.privateLookupIn(StateRegistry.class, lookup);
-            STATE_REGISTRY$clientBound = stateRegistryLookup.findGetter(StateRegistry.class, "clientbound", StateRegistry.PacketRegistry.class);
-            STATE_REGISTRY$serverBound = stateRegistryLookup.findGetter(StateRegistry.class, "serverbound", StateRegistry.PacketRegistry.class);
+            STATE_REGISTRY$clientBound = stateRegistryLookup.findGetter(
+                    StateRegistry.class, "clientbound", StateRegistry.PacketRegistry.class);
+            STATE_REGISTRY$serverBound = stateRegistryLookup.findGetter(
+                    StateRegistry.class, "serverbound", StateRegistry.PacketRegistry.class);
 
-            final MethodType mapType = MethodType.methodType(StateRegistry.PacketMapping.class, Integer.TYPE, ProtocolVersion.class, Boolean.TYPE);
-            PACKET_MAPPING$map = stateRegistryLookup.findStatic(StateRegistry.class, "map", mapType);
+            final MethodType mapType = MethodType.methodType(
+                    StateRegistry.PacketMapping.class, Integer.TYPE, ProtocolVersion.class, Boolean.TYPE);
+            PACKET_MAPPING$map = stateRegistryLookup.findStatic(
+                    StateRegistry.class, "map", mapType);
 
-            final MethodHandles.Lookup packetRegistryLookup = MethodHandles.privateLookupIn(StateRegistry.PacketRegistry.class, lookup);
-            final MethodType registerType = MethodType.methodType(void.class, Class.class, Supplier.class, StateRegistry.PacketMapping[].class);
-            PACKET_REGISTRY$register = packetRegistryLookup.findVirtual(StateRegistry.PacketRegistry.class, "register", registerType);
-            PACKET_REGISTRY$versions = packetRegistryLookup.findGetter(StateRegistry.PacketRegistry.class, "versions", Map.class);
+            final MethodHandles.Lookup packetRegistryLookup = MethodHandles.privateLookupIn(
+                    StateRegistry.PacketRegistry.class, lookup);
+            final MethodType registerType = MethodType.methodType(
+                    void.class, Class.class, Supplier.class, StateRegistry.PacketMapping[].class);
+            PACKET_REGISTRY$register = packetRegistryLookup.findVirtual(
+                    StateRegistry.PacketRegistry.class, "register", registerType);
+            PACKET_REGISTRY$versions = packetRegistryLookup.findGetter(
+                    StateRegistry.PacketRegistry.class, "versions", Map.class);
 
-            final MethodHandles.Lookup protocolRegistryLookup = MethodHandles.privateLookupIn(StateRegistry.PacketRegistry.ProtocolRegistry.class, lookup);
-            PACKET_REGISTRY$packetIdToSupplier = protocolRegistryLookup.findGetter(StateRegistry.PacketRegistry.ProtocolRegistry.class, "packetIdToSupplier", IntObjectMap.class);
-            PACKET_REGISTRY$packetClassToId = protocolRegistryLookup.findGetter(StateRegistry.PacketRegistry.ProtocolRegistry.class, "packetClassToId", Object2IntMap.class);
+            final MethodHandles.Lookup protocolRegistryLookup = MethodHandles.privateLookupIn(
+                    StateRegistry.PacketRegistry.ProtocolRegistry.class, lookup);
+            PACKET_REGISTRY$packetIdToSupplier = protocolRegistryLookup.findGetter(
+                    StateRegistry.PacketRegistry.ProtocolRegistry.class, "packetIdToSupplier", IntObjectMap.class);
+            PACKET_REGISTRY$packetClassToId = protocolRegistryLookup.findGetter(
+                    StateRegistry.PacketRegistry.ProtocolRegistry.class, "packetClassToId", Object2IntMap.class);
 
 
         } catch (Throwable e) {

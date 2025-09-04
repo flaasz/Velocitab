@@ -19,25 +19,27 @@
 
 package net.william278.velocitab.config;
 
-import com.google.common.collect.Sets;
+import com.google.common.collect.Lists;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.william278.velocitab.Velocitab;
+import net.william278.velocitab.placeholder.PlaceholderReplacement;
 import net.william278.velocitab.player.TabPlayer;
 import net.william278.velocitab.tab.Nametag;
-import org.apache.commons.text.StringEscapeUtils;
+import net.william278.velocitab.util.StringUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.event.Level;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
-@SuppressWarnings("unused")
 public record Group(
         String name,
         List<String> headers,
@@ -46,41 +48,55 @@ public record Group(
         Nametag nametag,
         Set<String> servers,
         List<String> sortingPlaceholders,
+        Map<String, List<PlaceholderReplacement>> placeholderReplacements,
         boolean collisions,
         int headerFooterUpdateRate,
+        int formatUpdateRate,
+        int nametagUpdateRate,
         int placeholderUpdateRate,
         boolean onlyListPlayersInSameServer
 ) {
 
     @NotNull
     public String getHeader(int index) {
-        return headers.isEmpty() ? "" : StringEscapeUtils.unescapeJava(headers
+        return headers.isEmpty() ? "" : StringUtil.unescapeJava(headers
                 .get(Math.max(0, Math.min(index, headers.size() - 1))));
     }
 
     @NotNull
     public String getFooter(int index) {
-        return footers.isEmpty() ? "" : StringEscapeUtils.unescapeJava(footers
+        return footers.isEmpty() ? "" : StringUtil.unescapeJava(footers
                 .get(Math.max(0, Math.min(index, footers.size() - 1))));
     }
 
+    public boolean containsServer(@NotNull Velocitab plugin, @NotNull String serverName) {
+        return registeredServers(plugin).stream()
+                .anyMatch(registeredServer -> registeredServer.getServerInfo().getName().equalsIgnoreCase(serverName));
+    }
+
     @NotNull
-    public Set<RegisteredServer> registeredServers(@NotNull Velocitab plugin) {
+    public List<RegisteredServer> registeredServers(@NotNull Velocitab plugin) {
         return registeredServers(plugin, true);
     }
 
     @NotNull
-    public Set<RegisteredServer> registeredServers(@NotNull Velocitab plugin, boolean includeAllPlayers) {
+    public List<RegisteredServer> registeredServers(@NotNull Velocitab plugin, boolean includeAllPlayers) {
         if ((includeAllPlayers && plugin.getSettings().isShowAllPlayersFromAllGroups()) ||
                 (isDefault(plugin) && plugin.getSettings().isFallbackEnabled())) {
-            return Sets.newHashSet(plugin.getServer().getAllServers());
+            return Lists.newArrayList(plugin.getServer().getAllServers());
         }
+
         return getRegexServers(plugin);
     }
 
     @NotNull
-    private Set<RegisteredServer> getRegexServers(@NotNull Velocitab plugin) {
-        final Set<RegisteredServer> totalServers = Sets.newHashSet();
+    private List<RegisteredServer> getRegexServers(@NotNull Velocitab plugin) {
+        final Optional<List<RegisteredServer>> cachedServers = plugin.getTabGroupsManager().getCachedServers(this);
+        if (cachedServers.isPresent()) {
+            return cachedServers.get();
+        }
+
+        final List<RegisteredServer> totalServers = Lists.newArrayList();
         for (String server : servers) {
             try {
                 final Matcher matcher = Pattern.compile(server, Pattern.CASE_INSENSITIVE).matcher("");
@@ -92,6 +108,8 @@ public record Group(
                 plugin.getServer().getServer(server).ifPresent(totalServers::add);
             }
         }
+
+        plugin.getTabGroupsManager().cacheServers(this, totalServers);
         return totalServers;
     }
 
@@ -100,59 +118,84 @@ public record Group(
     }
 
     @NotNull
-    public Set<Player> getPlayers(@NotNull Velocitab plugin) {
-        Set<Player> players = Sets.newHashSet();
+    public List<Player> getPlayers(@NotNull Velocitab plugin) {
+        final List<Player> players = Lists.newArrayList();
         for (RegisteredServer server : registeredServers(plugin)) {
             players.addAll(server.getPlayersConnected());
         }
-        return players;
+
+        return players.stream().filter(Player::isActive).collect(Collectors.toList());
     }
 
     @NotNull
-    public Set<Player> getPlayers(@NotNull Velocitab plugin, @NotNull TabPlayer tabPlayer) {
+    public List<Player> getPlayers(@NotNull Velocitab plugin, @NotNull TabPlayer tabPlayer) {
         if (plugin.getSettings().isShowAllPlayersFromAllGroups()) {
-            return Sets.newHashSet(plugin.getServer().getAllPlayers());
+            return Lists.newArrayList(plugin.getServer().getAllPlayers());
         }
+
         if (onlyListPlayersInSameServer) {
             return tabPlayer.getPlayer().getCurrentServer()
-                    .map(s -> Sets.newHashSet(s.getServer().getPlayersConnected()))
-                    .orElseGet(Sets::newHashSet);
+                    .map(s -> Lists.newArrayList(s.getServer().getPlayersConnected()))
+                    .orElseGet(Lists::newArrayList);
         }
+
         return getPlayers(plugin);
     }
 
-    /**
-     * Retrieves the set of TabPlayers associated with the given Velocitab plugin instance.
-     * If the plugin is configured to show all players from all groups, all players will be returned.
-     *
-     * @param plugin The Velocitab plugin instance.
-     * @return A set of TabPlayers.
-     */
-    @NotNull
-    public Set<TabPlayer> getTabPlayers(@NotNull Velocitab plugin) {
-        if (plugin.getSettings().isShowAllPlayersFromAllGroups()) {
-            return Sets.newHashSet(plugin.getTabList().getPlayers().values());
+    public List<TabPlayer> getTabPlayers(@NotNull Velocitab plugin) {
+        return getTabPlayers(plugin, true);
+    }
+
+    public List<TabPlayer> getTabPlayers(@NotNull Velocitab plugin, boolean allGroups) {
+        if (allGroups && plugin.getSettings().isShowAllPlayersFromAllGroups()) {
+            return plugin.getTabList().getPlayers().values().stream().filter(TabPlayer::isLoaded).collect(Collectors.toList());
         }
+
         return plugin.getTabList().getPlayers()
                 .values()
                 .stream()
-                .filter(tabPlayer -> tabPlayer.getGroup().equals(this))
-                .collect(Collectors.toSet());
+                .filter(tabPlayer -> tabPlayer.isLoaded() && tabPlayer.getGroup().equals(this) && tabPlayer.getPlayer().isActive())
+                .collect(Collectors.toList());
     }
 
     @NotNull
-    public Set<TabPlayer> getTabPlayers(@NotNull Velocitab plugin, @NotNull TabPlayer tabPlayer) {
+    public List<TabPlayer> getTabPlayers(@NotNull Velocitab plugin, @NotNull TabPlayer tabPlayer) {
+        return getTabPlayers(plugin, tabPlayer, false);
+    }
+
+    @NotNull
+    public List<TabPlayer> getTabPlayers(@NotNull Velocitab plugin, @NotNull TabPlayer tabPlayer, boolean force) {
         if (plugin.getSettings().isShowAllPlayersFromAllGroups()) {
-            return Sets.newHashSet(plugin.getTabList().getPlayers().values());
+            return plugin.getTabList().getPlayers().values().stream().filter(TabPlayer::isLoaded).collect(Collectors.toList());
         }
+
         if (onlyListPlayersInSameServer) {
             return plugin.getTabList().getPlayers()
                     .values()
                     .stream()
-                    .filter(player -> player.getGroup().equals(this) && player.getServerName().equals(tabPlayer.getServerName()))
-                    .collect(Collectors.toSet());
+                    .filter(player -> (player.isLoaded() || force) && player.getGroup().equals(this) && tabPlayer.getPlayer().isActive() && player.getServerName().equals(tabPlayer.getServerName()))
+                    .collect(Collectors.toList());
         }
+
         return getTabPlayers(plugin);
+    }
+
+    @NotNull
+    public List<String> getTextsWithPlaceholders(@NotNull Velocitab plugin) {
+        final List<String> texts = Lists.newArrayList();
+        texts.add(name);
+        texts.add(format);
+        texts.addAll(headers);
+        texts.addAll(footers);
+        texts.add(nametag.prefix());
+        texts.add(nametag.suffix());
+        texts.addAll(sortingPlaceholders);
+
+        if (plugin.getLuckPermsHook().isEmpty()) {
+            texts.add("%luckperms_meta_weight%");
+        }
+
+        return texts;
     }
 
     @Override
@@ -160,6 +203,7 @@ public record Group(
         if (!(obj instanceof Group group)) {
             return false;
         }
+
         return name.equals(group.name);
     }
 }

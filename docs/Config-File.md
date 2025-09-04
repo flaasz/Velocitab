@@ -19,8 +19,8 @@ check_for_updates: true
 remove_nametags: true
 # Whether to disable header and footer if they are empty and let backend servers handle them.
 disable_header_footer_if_empty: true
-# Which text formatter to use (MINEDOWN, MINIMESSAGE, or LEGACY)
-formatter: MINEDOWN
+# Which text formatter to use (MINIMESSAGE, MINEDOWN or LEGACY)
+formatter: MINIMESSAGE
 # All servers which are not in other groups will be put in the fallback group.
 # "false" will exclude them from Velocitab.
 fallback_enabled: true
@@ -28,10 +28,6 @@ fallback_enabled: true
 fallback_group: default
 # Whether to show all players from all groups in the TAB list.
 show_all_players_from_all_groups: false
-# Define custom names to be shown in the TAB list for specific server names.
-# If no custom display name is provided for a server, its original name will be used.
-server_display_names:
-  very-long-server-name: VLSN
 # Whether to enable the PAPIProxyBridge hook for PAPI support
 enable_papi_hook: true
 # How long in seconds to cache PAPI placeholders for, in milliseconds. (0 to disable)
@@ -50,6 +46,18 @@ sort_players: true
 remove_spectator_effect: false
 # Whether to enable the Plugin Message API (allows backend plugins to perform certain operations)
 enable_plugin_message_api: true
+# Whether to force sending tab list packets to all players, even if a packet for that action has already been sent. This could fix issues with some mods.
+force_sending_tab_list_packets: false
+# A list of URLs that will be sent to display on player pause menus (Minecraft 1.21+ clients only).
+# • Labels can be fully custom or built-in (one of 'bug_report', 'community_guidelines', 'support', 'status',
+#   'feedback', 'community', 'website', 'forums', 'news', or 'announcements').
+# • If you supply a url with a 'bug_report' label, it will be shown if the player is disconnected.
+# • Specify a set of server groups each URL should be sent on. Use '*' to show a URL to all groups.
+server_links:
+  - label: '<#00fb9a>About Velocitab</#00fb9a>'
+    url: 'https://william278.net/project/velocitab'
+    groups:
+      - '*'
 ```
 
 </details>
@@ -69,29 +77,38 @@ enable_plugin_message_api: true
 # ┗╸ Documentation: https://william278.net/docs/velocitab
 
 groups:
-- name: default
-  headers:
-  - '&rainbow&Running Velocitab by William278'
-  footers:
-  - '[There are currently %players_online%/%max_players_online% players online](gray)'
-  format: '&7[%server%] &f%prefix%%username%'
-  nametag:
-    prefix: '&f%prefix%'
-    suffix: '&f%suffix%'
-  servers:
-  - ^lobby[^ ]*
-  - survival
-  - creative
-  - minigames
-  - skyblock
-  - prison
-  sorting_placeholders:
-  - '%role_weight%'
-  - '%username_lower%'
-  collisions: false
-  header_footer_update_rate: 1000
-  placeholder_update_rate: 1000
-  only_list_players_in_same_server: false
+  - name: default
+    headers:
+      - <rainbow:!2>Running Velocitab by William278 & AlexDev03</rainbow>
+    footers:
+      - <gray>There are currently %players_online%/%max_players_online% players online</gray>
+    format: <gray>[%server%] %prefix%%username%</gray>
+    nametag:
+      prefix: <white>%prefix%</white>
+      suffix: <white>%suffix%</white>
+    servers:
+      - skyblock
+      - minigames
+      - survival
+      - lobby
+      - prison
+      - creative
+      - hub
+    sorting_placeholders:
+      - '%role_weight%'
+      - '%username_lower%'
+    placeholder_replacements:
+      '%current_date_weekday_en-US%':
+        - placeholder: Monday
+          replacement: <red>Monday</red>
+        - placeholder: Tuesday
+          replacement: <gold>Tuesday</gold>
+        - placeholder: Else
+          replacement: <green>Other day</green>
+    collisions: false
+    header_footer_update_rate: 1000
+    placeholder_update_rate: 1000
+    only_list_players_in_same_server: false
 ```
 
 </details>
@@ -111,3 +128,9 @@ Velocitab supports basic header and footer animations by adding multiple frames 
 
 ### Placeholders
 You can use various placeholders that will be replaced with values (for example, `%username%`) in your config. Support for PlaceholderAPI is also available through [a bridge library plugin](https://modrinth.com/plugin/papiproxybridge), as is the component-based MiniPlaceholders for users of that plugin with the MiniMessage formatter. See [[Placeholders]] for more information.
+
+### Server Links
+For Minecraft 1.21+ clients, Velocitab supports specifying a list of URLs that will be sent to display in the player pause menu. See [[Server Links]] for more information.
+
+### Placeholder Replacements
+Velocitab supports replacing values of placeholders with other values. See [[Placeholders Replacements]] for more information.

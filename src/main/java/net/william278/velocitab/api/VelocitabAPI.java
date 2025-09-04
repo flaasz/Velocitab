@@ -29,6 +29,8 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -109,7 +111,7 @@ public class VelocitabAPI {
     public void setCustomPlayerName(@NotNull Player player, @Nullable String name) {
         getUser(player).ifPresent(tabPlayer -> {
             tabPlayer.setCustomName(name);
-            plugin.getTabList().updatePlayerDisplayName(tabPlayer);
+            plugin.getTabList().updateDisplayName(tabPlayer);
         });
     }
 
@@ -188,6 +190,40 @@ public class VelocitabAPI {
     @Nullable
     public Group getServerGroup(@NotNull Player player) {
         return getUser(player).map(TabPlayer::getGroup).orElse(null);
+    }
+
+    /**
+     * Retrieves a list of server groups.
+     *
+     * @return A list of Group objects representing server groups.
+     * @since 1.6.6
+     */
+    @NotNull
+    public List<Group> getServerGroups() {
+        return new ArrayList<>(plugin.getTabGroupsManager().getGroups());
+    }
+
+    /**
+     * Retrieves an optional Group object with the given name.
+     *
+     * @param name The name of the group to retrieve.
+     * @return An optional Group object containing the group with the given name, or an empty optional if no group exists with that name.
+     * @since 1.6.6
+     */
+    @NotNull
+    public Optional<Group> getGroup(@NotNull String name) {
+        return plugin.getTabGroupsManager().getGroup(name);
+    }
+
+    /**
+     * Gets a group from the server.
+     *
+     * @param server The server to get the group from.
+     * @return An optional Group object containing the group from the server, or an empty optional if no group exists with that name.
+     * @since 1.6.6
+     */
+    public Optional<Group> getGroupFromServer(@NotNull String server) {
+        return plugin.getTabGroupsManager().getGroupFromServer(server, plugin);
     }
 
     /**

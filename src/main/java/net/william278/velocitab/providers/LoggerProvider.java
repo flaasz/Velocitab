@@ -30,6 +30,7 @@ public interface LoggerProvider {
      *
      * @return the logger for the class
      */
+    @NotNull
     Logger getLogger();
 
     /**
@@ -55,6 +56,7 @@ public interface LoggerProvider {
                     getLogger().warn(message);
                 }
             }
+            case DEBUG -> getLogger().debug(message);
             case INFO -> getLogger().info(message);
         }
     }

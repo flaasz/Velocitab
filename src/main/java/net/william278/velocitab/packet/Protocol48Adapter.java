@@ -41,6 +41,35 @@ public class Protocol48Adapter extends TeamsPacketAdapter {
     }
 
     @Override
+    public void decode(@NotNull ByteBuf byteBuf, @NotNull UpdateTeamsPacket packet, @NotNull ProtocolVersion protocolVersion) {
+        packet.teamName(ProtocolUtils.readString(byteBuf));
+        UpdateTeamsPacket.UpdateMode mode = UpdateTeamsPacket.UpdateMode.byId(byteBuf.readByte());
+        packet.mode(mode);
+        if (mode == UpdateTeamsPacket.UpdateMode.REMOVE_TEAM) {
+            return;
+        }
+        if (mode == UpdateTeamsPacket.UpdateMode.CREATE_TEAM || mode == UpdateTeamsPacket.UpdateMode.UPDATE_INFO) {
+            packet.displayName(readComponent(byteBuf));
+            packet.prefix(readComponent(byteBuf));
+            packet.suffix(readComponent(byteBuf));
+            packet.friendlyFlags(UpdateTeamsPacket.FriendlyFlag.fromBitMask(byteBuf.readByte()));
+            packet.nametagVisibility(UpdateTeamsPacket.NametagVisibility.byId(ProtocolUtils.readString(byteBuf)));
+            if (protocolVersion.compareTo(ProtocolVersion.MINECRAFT_1_12_2) >= 0) {
+                packet.collisionRule(UpdateTeamsPacket.CollisionRule.byId(ProtocolUtils.readString(byteBuf)));
+            }
+            packet.color(byteBuf.readByte());
+        }
+        if (mode == UpdateTeamsPacket.UpdateMode.CREATE_TEAM || mode == UpdateTeamsPacket.UpdateMode.ADD_PLAYERS || mode == UpdateTeamsPacket.UpdateMode.REMOVE_PLAYERS) {
+            int count = ProtocolUtils.readVarInt(byteBuf);
+            List<String> entities = new ArrayList<>();
+            for (int i = 0; i < count; i++) {
+                entities.add(ProtocolUtils.readString(byteBuf));
+            }
+            packet.entities(entities);
+        }
+    }
+
+    @Override
     public void encode(@NotNull ByteBuf byteBuf, @NotNull UpdateTeamsPacket packet, @NotNull ProtocolVersion protocolVersion) {
         ProtocolUtils.writeString(byteBuf, shrinkString(packet.teamName()));
         UpdateTeamsPacket.UpdateMode mode = packet.mode();
@@ -69,22 +98,32 @@ public class Protocol48Adapter extends TeamsPacketAdapter {
         }
 
         if (mode == UpdateTeamsPacket.UpdateMode.CREATE_TEAM || mode == UpdateTeamsPacket.UpdateMode.ADD_PLAYERS || mode == UpdateTeamsPacket.UpdateMode.REMOVE_PLAYERS) {
-            List < ? > rawEntities = packet.entities();
-            List < String > entities = (List < String > )(List < ? > )(rawEntities != null ? rawEntities : new ArrayList < > ());
-            ProtocolUtils.writeVarInt(byteBuf, entities.size());
-            for (String entity: entities) {
-                ProtocolUtils.writeString(byteBuf, shrinkString(entity));
+            List<String> entities = packet.entities();
+            ProtocolUtils.writeVarInt(byteBuf, entities != null ? entities.size() : 0);
+            for (String entity : entities != null ? entities : new ArrayList<String>()) {
+                ProtocolUtils.writeString(byteBuf, entity);
             }
         }
     }
 
+    /**
+     * Returns a shortened version of the given string, with a maximum length of 16 characters.
+     * This is used to ensure that the team name, display name, prefix and suffix are not too long for the client.
+     *
+     * @param string the string to be shortened
+     * @return the shortened string
+     */
     @NotNull
     private String shrinkString(@NotNull String string) {
         return string != null ? string.substring(0, Math.min(string.length(), 16)) : "";
     }
 
-    protected void writeComponent(ByteBuf buf, Component component) {
-        ProtocolUtils.writeString(buf, shrinkString(serializer.serialize(component != null ? component : Component.empty())));
+    protected void writeComponent(@NotNull ByteBuf buf, @NotNull Component component) {
+        ProtocolUtils.writeString(buf, shrinkString(serializer.serialize(component)));
     }
 
+    @NotNull
+    protected Component readComponent(@NotNull ByteBuf buf) {
+        return serializer.deserialize(ProtocolUtils.readString(buf));
+    }
 }

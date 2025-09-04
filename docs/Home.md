@@ -9,13 +9,17 @@ Please click through to the topic you wish to read about.
 * 📄 [[Config File]]
 
 ## Documentation
+* 🖥️ [[Commands]]
 * 👥 [[Server Groups]]
 * 🎨 [[Formatting]]
 * 📛 [[Nametags]]
 * 📊 [[Sorting]]
 * ✍️ [[Placeholders]]
+* 🔗 [[Relational Placeholders]]
+* 🔀 [[Conditional Placeholders]]
 * ✨ [[Animations]]
 * 🖼️ [[Custom Logos]]
+* 🔗 [[Server Links]]
 * 📦 [[API]]
     * 📝 [[API Examples]]
     * 📝 [[Plugin Message API]]
