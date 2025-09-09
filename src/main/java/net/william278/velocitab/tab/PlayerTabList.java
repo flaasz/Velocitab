@@ -398,8 +398,8 @@ public class PlayerTabList {
                         entry -> entry.setDisplayName(displayName),
                         () -> player.getPlayer().getTabList()
                                 .addEntry(createEntry(newPlayer, player.getPlayer().getTabList(), displayName))
-                );
-    }*/
+                );*/
+    };
 
 
     @NotNull
